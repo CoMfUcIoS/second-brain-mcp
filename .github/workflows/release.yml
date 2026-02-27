@@ -95,7 +95,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Upload build artifacts
         if: steps.tag.outputs.new_tag != ''
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: build-artifacts-${{ steps.tag.outputs.new_tag }}
           path: |-
