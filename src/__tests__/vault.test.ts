@@ -6,7 +6,9 @@ import { join } from "path";
 import { tmpdir } from "os";
 
 describe("ObsidianVault", () => {
-  // Helper to retry a query until expected results are found or timeout
+  // Helper to retry a query until expected results are found or timeout.
+  // Re-runs vault.initialize() on each retry so a partial scan from a
+  // loaded CI runner doesn't permanently poison the in-memory store.
   async function retryUntilFound<T>(
     fn: () => Promise<T[]>,
     expectedCount: number,
@@ -15,6 +17,7 @@ describe("ObsidianVault", () => {
   ): Promise<T[]> {
     let results: T[] = [];
     for (let i = 0; i < retries; i++) {
+      if (i > 0) await vault.initialize();
       results = await fn();
       if (results.length >= expectedCount) break;
       await new Promise((res) => setTimeout(res, delay));
