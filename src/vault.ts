@@ -18,6 +18,7 @@ import {
   QuestionNote,
   GraphNode,
   GraphEdge,
+  parseDate,
 } from "./types.js";
 import { IStorage } from "./storage.js";
 import { createStorage } from "./storage-factory.js";
@@ -295,5 +296,68 @@ export class ObsidianVault {
         totalQuestionNotes: questionNotes.length,
       },
     };
+  }
+
+  async getNotesForReview(
+    options: { daysSinceModified?: number; limit?: number } = {},
+  ): Promise<ReviewNote[]> {
+    const { daysSinceModified = 14, limit = 10 } = options;
+    const notes = await this.storage.getAllNotes();
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const cutoff = new Date(today);
+    cutoff.setDate(cutoff.getDate() - daysSinceModified);
+
+    const inboundCount = new Map<string, number>(notes.map((n) => [n.path, 0]));
+    const titleToPath = new Map(
+      notes.map((n) => [n.title.toLowerCase(), n.path]),
+    );
+    for (const note of notes) {
+      for (const target of this.extractWikilinks(note.content)) {
+        const targetPath = titleToPath.get(
+          target.split("/").pop()!.toLowerCase(),
+        );
+        if (targetPath) {
+          inboundCount.set(targetPath, (inboundCount.get(targetPath) || 0) + 1);
+        }
+      }
+    }
+
+    const candidates: ReviewNote[] = [];
+
+    for (const note of notes) {
+      const dateStr =
+        (note.frontmatter.modified as string | undefined) ||
+        (note.frontmatter.created as string | undefined);
+      if (!dateStr) continue;
+      const noteDate = parseDate(dateStr);
+      if (!noteDate || noteDate >= cutoff) continue;
+
+      const diffDays = Math.round(
+        (today.getTime() - noteDate.getTime()) / (1000 * 60 * 60 * 24),
+      );
+
+      candidates.push({
+        path: note.path,
+        title: note.title,
+        excerpt: note.excerpt,
+        tags: note.frontmatter.tags || [],
+        type: note.frontmatter.type,
+        status: note.frontmatter.status,
+        category: note.frontmatter.category,
+        modified: note.frontmatter.modified as string | undefined,
+        daysSinceModified: diffDays,
+      });
+    }
+
+    candidates.sort((a, b) => {
+      const daysDiff = b.daysSinceModified - a.daysSinceModified;
+      if (daysDiff !== 0) return daysDiff;
+      return (inboundCount.get(b.path) || 0) - (inboundCount.get(a.path) || 0);
+    });
+
+    return candidates.slice(0, limit);
   }
 }

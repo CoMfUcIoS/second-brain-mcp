@@ -580,4 +580,86 @@ describe("ObsidianVault", () => {
       expect(result.stats.totalOrphanLinks).toBe(5);
     });
   });
+
+  describe("getNotesForReview", () => {
+    function daysAgo(n: number): string {
+      const d = new Date();
+      d.setDate(d.getDate() - n);
+      return d.toISOString().split("T")[0];
+    }
+
+    test("returns notes not modified within the threshold", async () => {
+      await writeFile(
+        join(testVaultPath, "Old.md"),
+        `---\nmodified: "${daysAgo(30)}"\ntags: []\n---\nOld content.`,
+      );
+      await writeFile(
+        join(testVaultPath, "Recent.md"),
+        `---\nmodified: "${daysAgo(3)}"\ntags: []\n---\nRecent content.`,
+      );
+      await vault.initialize();
+
+      const result = await vault.getNotesForReview({ daysSinceModified: 14 });
+
+      expect(result.map((n) => n.title)).toContain("Old");
+      expect(result.map((n) => n.title)).not.toContain("Recent");
+    });
+
+    test("includes daysSinceModified on each result", async () => {
+      await writeFile(
+        join(testVaultPath, "OldNote.md"),
+        `---\nmodified: "${daysAgo(20)}"\ntags: []\n---\nContent.`,
+      );
+      await vault.initialize();
+
+      const result = await vault.getNotesForReview({ daysSinceModified: 14 });
+
+      expect(result[0].daysSinceModified).toBeGreaterThanOrEqual(20);
+    });
+
+    test("excludes notes with no date", async () => {
+      await writeFile(
+        join(testVaultPath, "NoDate.md"),
+        "---\ntags: []\n---\nNo date.",
+      );
+      await vault.initialize();
+
+      const result = await vault.getNotesForReview({ daysSinceModified: 0 });
+
+      expect(result.map((n) => n.title)).not.toContain("NoDate");
+    });
+
+    test("respects limit option", async () => {
+      for (let i = 0; i < 5; i++) {
+        await writeFile(
+          join(testVaultPath, `Old${i}.md`),
+          `---\nmodified: "${daysAgo(30 + i)}"\ntags: []\n---\nContent.`,
+        );
+      }
+      await vault.initialize();
+
+      const result = await vault.getNotesForReview({
+        daysSinceModified: 14,
+        limit: 3,
+      });
+
+      expect(result).toHaveLength(3);
+    });
+
+    test("sorts by most overdue first", async () => {
+      await writeFile(
+        join(testVaultPath, "VeryOld.md"),
+        `---\nmodified: "${daysAgo(60)}"\ntags: []\n---\nContent.`,
+      );
+      await writeFile(
+        join(testVaultPath, "SlightlyOld.md"),
+        `---\nmodified: "${daysAgo(20)}"\ntags: []\n---\nContent.`,
+      );
+      await vault.initialize();
+
+      const result = await vault.getNotesForReview({ daysSinceModified: 14 });
+
+      expect(result[0].title).toBe("VeryOld");
+    });
+  });
 });
