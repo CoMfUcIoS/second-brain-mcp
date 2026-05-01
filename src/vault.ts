@@ -360,4 +360,93 @@ export class ObsidianVault {
 
     return candidates.slice(0, limit);
   }
+
+  async findRelatedNotes(
+    notePath: string,
+    options: { limit?: number } = {},
+  ): Promise<RelatedNote[]> {
+    const { limit = 10 } = options;
+    const notes = await this.storage.getAllNotes();
+
+    const source = notes.find((n) => n.path === notePath);
+    if (!source) return [];
+
+    const sourceOutLinks = new Set(
+      this.extractWikilinks(source.content).map((t) =>
+        t.split("/").pop()!.toLowerCase(),
+      ),
+    );
+    const sourceTags = new Set(source.frontmatter.tags || []);
+    const sourceTitleWords = new Set(
+      source.title
+        .toLowerCase()
+        .split(/\W+/)
+        .filter((w) => w.length >= 4),
+    );
+
+    const results: RelatedNote[] = [];
+
+    for (const candidate of notes) {
+      if (candidate.path === notePath) continue;
+
+      let score = 0;
+      const relationships: string[] = [];
+
+      if (sourceOutLinks.has(candidate.title.toLowerCase())) {
+        score += 5;
+        relationships.push("this note links to it");
+      }
+
+      const candidateOutLinks = new Set(
+        this.extractWikilinks(candidate.content).map((t) =>
+          t.split("/").pop()!.toLowerCase(),
+        ),
+      );
+      if (candidateOutLinks.has(source.title.toLowerCase())) {
+        score += 5;
+        relationships.push("links to this note");
+      }
+
+      const sharedTags = (candidate.frontmatter.tags || []).filter((t) =>
+        sourceTags.has(t),
+      );
+      if (sharedTags.length > 0) {
+        score += sharedTags.length * 3;
+        relationships.push(
+          `${sharedTags.length} shared tag${sharedTags.length > 1 ? "s" : ""}: ${sharedTags.join(", ")}`,
+        );
+      }
+
+      const candidateTitleWords = candidate.title
+        .toLowerCase()
+        .split(/\W+/)
+        .filter((w) => w.length >= 4);
+      const sharedWords = candidateTitleWords.filter((w) =>
+        sourceTitleWords.has(w),
+      );
+      if (sharedWords.length > 0) {
+        score += sharedWords.length;
+        relationships.push(
+          `shared title word${sharedWords.length > 1 ? "s" : ""}: ${sharedWords.join(", ")}`,
+        );
+      }
+
+      if (score > 0) {
+        results.push({
+          path: candidate.path,
+          title: candidate.title,
+          excerpt: candidate.excerpt,
+          tags: candidate.frontmatter.tags || [],
+          type: candidate.frontmatter.type,
+          status: candidate.frontmatter.status,
+          category: candidate.frontmatter.category,
+          modified: candidate.frontmatter.modified as string | undefined,
+          score,
+          relationships,
+        });
+      }
+    }
+
+    return results.sort((a, b) => b.score - a.score).slice(0, limit);
+  }
 }

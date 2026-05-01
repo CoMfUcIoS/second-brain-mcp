@@ -662,4 +662,108 @@ describe("ObsidianVault", () => {
       expect(result[0].title).toBe("VeryOld");
     });
   });
+
+  describe("findRelatedNotes", () => {
+    test("returns empty array for unknown path", async () => {
+      await writeFile(
+        join(testVaultPath, "A.md"),
+        "---\ntags: []\n---\nContent.",
+      );
+      await vault.initialize();
+
+      const result = await vault.findRelatedNotes("does-not-exist.md");
+
+      expect(result).toHaveLength(0);
+    });
+
+    test("scores notes that the source links to", async () => {
+      await writeFile(
+        join(testVaultPath, "Source.md"),
+        "---\ntags: []\n---\nSee [[Target]].",
+      );
+      await writeFile(
+        join(testVaultPath, "Target.md"),
+        "---\ntags: []\n---\nTarget content.",
+      );
+      await writeFile(
+        join(testVaultPath, "Unrelated.md"),
+        "---\ntags: []\n---\nNo links.",
+      );
+      await vault.initialize();
+
+      const result = await vault.findRelatedNotes("Source.md");
+
+      expect(result.map((n) => n.title)).toContain("Target");
+      expect(
+        result.find((n) => n.title === "Target")!.score,
+      ).toBeGreaterThanOrEqual(5);
+    });
+
+    test("scores notes that link back to source", async () => {
+      await writeFile(
+        join(testVaultPath, "Source.md"),
+        "---\ntags: []\n---\nContent.",
+      );
+      await writeFile(
+        join(testVaultPath, "Linker.md"),
+        "---\ntags: []\n---\nSee [[Source]].",
+      );
+      await vault.initialize();
+
+      const result = await vault.findRelatedNotes("Source.md");
+
+      const linker = result.find((n) => n.title === "Linker");
+      expect(linker).toBeDefined();
+      expect(linker!.score).toBeGreaterThanOrEqual(5);
+      expect(linker!.relationships).toContain("links to this note");
+    });
+
+    test("scores notes by shared tags", async () => {
+      await writeFile(
+        join(testVaultPath, "Source.md"),
+        "---\ntags: [golang, work]\n---\nContent.",
+      );
+      await writeFile(
+        join(testVaultPath, "SameTags.md"),
+        "---\ntags: [golang, work]\n---\nOther content.",
+      );
+      await vault.initialize();
+
+      const result = await vault.findRelatedNotes("Source.md");
+
+      const match = result.find((n) => n.title === "SameTags");
+      expect(match).toBeDefined();
+      expect(match!.score).toBe(6); // 2 shared tags × 3
+    });
+
+    test("excludes source note from results", async () => {
+      await writeFile(
+        join(testVaultPath, "Source.md"),
+        "---\ntags: [golang]\n---\nContent.",
+      );
+      await vault.initialize();
+
+      const result = await vault.findRelatedNotes("Source.md");
+
+      expect(result.map((n) => n.path)).not.toContain("Source.md");
+    });
+
+    test("respects limit option", async () => {
+      await writeFile(
+        join(testVaultPath, "Source.md"),
+        "---\ntags: [golang]\n---\nContent.",
+      );
+      for (let i = 0; i < 5; i++) {
+        await writeFile(
+          join(testVaultPath, `Related${i}.md`),
+          `---\ntags: [golang]\n---\nContent.`,
+        );
+      }
+      await vault.initialize();
+
+      const result = await vault.findRelatedNotes("Source.md", { limit: 2 });
+
+      expect(result).toHaveLength(2);
+    });
+  });
 });
