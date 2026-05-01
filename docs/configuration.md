@@ -57,11 +57,11 @@ The server automatically detects your vault structure based on the standardized 
 ```json
 {
   "mcpServers": {
-    "obsidian-sb": {
+    "second-brain": {
       "command": "npx",
       "args": [
         "-y",
-        "@comfucios/obsidian-mcp-sb",
+        "@comfucios/second-brain-mcp",
         "--vault-path",
         "/Users/username/Documents/Vault",
         "--index-patterns",

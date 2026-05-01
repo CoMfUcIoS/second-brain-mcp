@@ -14,7 +14,7 @@
  *   - .vscode/ and other non-md artifacts ignored
  *   - no .obsidian/ folder present
  */
-import { ObsidianVault } from "../vault.js";
+import { MarkdownVault } from "../vault.js";
 import { VaultConfig } from "../types.js";
 import { mkdir, writeFile, rm } from "fs/promises";
 import { join } from "path";
@@ -22,7 +22,7 @@ import { tmpdir } from "os";
 
 describe("Foam Compatibility", () => {
   let workspacePath: string;
-  let vault: ObsidianVault;
+  let vault: MarkdownVault;
   let config: VaultConfig;
 
   async function retryUntilFound<T>(
@@ -67,7 +67,7 @@ describe("Foam Compatibility", () => {
       },
     };
 
-    vault = new ObsidianVault(config);
+    vault = new MarkdownVault(config);
   });
 
   afterEach(async () => {

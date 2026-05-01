@@ -8,16 +8,16 @@ This diagram shows the high-level system architecture and data flow for the MCP 
 ````mermaid
 graph TD
     A[MCP Client<br/>Claude/VSCode] -->|MCP Protocol| B[MCP Server<br/>index.ts]
-    B -->|Initialize| C[ObsidianVault<br/>vault.ts]
+    B -->|Initialize| C[MarkdownVault<br/>vault.ts]
     C -->|Create Storage| D{Storage Factory<br/>storage-factory.ts}
 
     D -->|Default| E[DatabaseStorage<br/>database-storage.ts]
     D -->|--use-memory| F[MemoryStorage<br/>memory-storage.ts]
 
-    E -->|Stores in| G[(SQLite DB<br/>.obsidian-mcp/notes.db)]
+    E -->|Stores in| G[(SQLite DB<br/>.second-brain-mcp/notes.db)]
     F -->|Stores in| H[In-Memory<br/>Map + Fuse.js]
 
-    C -->|Scan Files| I[Obsidian Vault<br/>*.md files]
+    C -->|Scan Files| I[Markdown Vault<br/>*.md files]
     I -->|Parse Frontmatter| J[gray-matter]
     J -->|Index Notes| E
     J -->|Index Notes| F

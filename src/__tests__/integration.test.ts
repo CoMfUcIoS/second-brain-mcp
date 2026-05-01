@@ -2,12 +2,12 @@ import { describe, test, expect, beforeAll, afterAll } from "@jest/globals";
 import { mkdir, writeFile, rm } from "fs/promises";
 import { join } from "path";
 import { tmpdir } from "os";
-import { ObsidianVault } from "../vault.js";
+import { MarkdownVault } from "../vault.js";
 import { VaultConfig } from "../types.js";
 
 describe("Integration Tests - Full Workflow", () => {
   let testVaultPath: string;
-  let vault: ObsidianVault;
+  let vault: MarkdownVault;
   let config: VaultConfig;
 
   beforeAll(async () => {
@@ -89,7 +89,7 @@ Completed personal task.`,
       },
     };
 
-    vault = new ObsidianVault(config);
+    vault = new MarkdownVault(config);
     await vault.initialize();
   }, 15000);
 
@@ -314,7 +314,7 @@ Puppet-related task.`,
       );
 
       // Reinitialize vault to pick up new note
-      vault = new ObsidianVault(config);
+      vault = new MarkdownVault(config);
       await vault.initialize();
 
       // Parent tag should match child

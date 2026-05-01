@@ -1,20 +1,20 @@
 {
-  "name": "@comfucios/obsidian-mcp-sb",
-  "version": "0.1.7",
-  "description": "MCP server for Obsidian vault as a second brain",
+  "name": "@comfucios/second-brain-mcp",
+  "version": "0.1.6",
+  "description": "MCP server for any Markdown vault as a second brain (Obsidian, Foam, Logseq, plain files)",
   "main": "dist/index.js",
   "author": "Ioannis Karasavvaidis <ioannis@studio110.eu>",
   "license": "ISC",
   "type": "module",
   "repository": {
-    "url": "https://github.com/CoMfUcIoS/obsidian-mcp-sb"
+    "url": "https://github.com/CoMfUcIoS/second-brain-mcp"
   },
   "bugs": {
-    "url": "https://github.com/CoMfUcIoS/obsidian-mcp-sb/issues"
+    "url": "https://github.com/CoMfUcIoS/second-brain-mcp/issues"
   },
-  "homepage": "https://github.com/CoMfUcIoS/obsidian-mcp-sb#readme",
+  "homepage": "https://github.com/CoMfUcIoS/second-brain-mcp#readme",
   "bin": {
-    "obsidian-mcp-sb": "dist/index.js"
+    "second-brain-mcp": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",

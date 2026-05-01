@@ -41,7 +41,7 @@ npm run lint:fix
 
 The server uses **SQLite database storage by default** for efficient indexing and persistent caching:
 
-- **Database Mode (Default):** Stores indexed notes in `.obsidian-mcp/notes.db` within your vault
+- **Database Mode (Default):** Stores indexed notes in `.second-brain-mcp/notes.db` within your vault
   - Persistent indexing (survives server restarts)
   - Efficient for large vaults (1000+ notes)
   - Full-text search with SQLite FTS5

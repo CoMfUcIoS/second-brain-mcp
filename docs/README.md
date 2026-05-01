@@ -1,6 +1,6 @@
 # Documentation Overview
 
-Welcome! This folder contains detailed guides and references for all aspects of the Obsidian MCP Second Brain Server.
+Welcome! This folder contains detailed guides and references for all aspects of the Second Brain MCP Server.
 
 **How to use this documentation:**
 
