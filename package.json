@@ -1,6 +1,6 @@
 {
   "name": "@comfucios/obsidian-mcp-sb",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "MCP server for Obsidian vault as a second brain",
   "main": "dist/index.js",
   "author": "Ioannis Karasavvaidis <ioannis@studio110.eu>",
