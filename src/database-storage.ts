@@ -13,8 +13,8 @@ export class DatabaseStorage implements IStorage {
   private readonly dbPath: string;
 
   constructor(vaultPath: string) {
-    // Store database in vault's .obsidian-mcp directory
-    const dbDir = join(vaultPath, '.obsidian-mcp');
+    // Store database in vault's .second-brain-mcp directory
+    const dbDir = join(vaultPath, '.second-brain-mcp');
     if (!existsSync(dbDir)) {
       mkdirSync(dbDir, { recursive: true });
     }

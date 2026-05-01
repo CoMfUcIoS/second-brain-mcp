@@ -7,7 +7,7 @@ import {
   ListToolsRequestSchema,
   Tool,
 } from "@modelcontextprotocol/sdk/types.js";
-import { ObsidianVault } from "./vault.js";
+import { MarkdownVault } from "./vault.js";
 import { defaultConfig } from "./config.js";
 import {
   SearchOptions,
@@ -117,7 +117,7 @@ if (!vaultPath) {
   console.error(
     "Error: Vault path is required. Please provide --vault-path argument.",
   );
-  console.error('Example: obsidian-mcp-sb --vault-path "/path/to/vault"');
+  console.error('Example: second-brain-mcp --vault-path "/path/to/vault"');
   process.exit(1);
 }
 
@@ -178,7 +178,7 @@ const vaultConfig: VaultConfig = {
 // Validate configuration
 validateConfig(vaultConfig);
 
-const vault = new ObsidianVault(vaultConfig);
+const vault = new MarkdownVault(vaultConfig);
 
 // Read version from package.json
 const packageJson = JSON.parse(
@@ -187,7 +187,7 @@ const packageJson = JSON.parse(
 
 const server = new Server(
   {
-    name: "obsidian-mcp-sb",
+    name: "second-brain-mcp",
     version: packageJson.version,
   },
   {
@@ -696,7 +696,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 async function main() {
   try {
-    console.error(`Initializing Obsidian MCP Server...`);
+    console.error(`Initializing Second Brain MCP Server...`);
     console.error(`Vault path: ${resolvedVaultPath}`);
 
     await vault.initialize();
@@ -704,7 +704,7 @@ async function main() {
     const transport = new StdioServerTransport();
     await server.connect(transport);
 
-    console.error("Obsidian MCP Server running on stdio");
+    console.error("Second Brain MCP Server running on stdio");
   } catch (error) {
     console.error("Fatal error during initialization:");
     console.error(error instanceof Error ? error.message : String(error));
