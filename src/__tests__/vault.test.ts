@@ -766,4 +766,128 @@ describe("ObsidianVault", () => {
       expect(result).toHaveLength(2);
     });
   });
+
+  describe("getVaultGraph", () => {
+    test("returns all notes as nodes", async () => {
+      await writeFile(
+        join(testVaultPath, "A.md"),
+        "---\ntags: []\n---\nContent.",
+      );
+      await writeFile(
+        join(testVaultPath, "B.md"),
+        "---\ntags: []\n---\nContent.",
+      );
+      await vault.initialize();
+
+      const result = await vault.getVaultGraph();
+
+      expect(result.nodes).toHaveLength(2);
+      expect(result.nodes.map((n) => n.title)).toEqual(
+        expect.arrayContaining(["A", "B"]),
+      );
+    });
+
+    test("counts inbound and outbound links per node", async () => {
+      await writeFile(
+        join(testVaultPath, "A.md"),
+        "---\ntags: []\n---\nSee [[B]].",
+      );
+      await writeFile(
+        join(testVaultPath, "B.md"),
+        "---\ntags: []\n---\nContent.",
+      );
+      await vault.initialize();
+
+      const result = await vault.getVaultGraph();
+
+      const nodeA = result.nodes.find((n) => n.title === "A")!;
+      const nodeB = result.nodes.find((n) => n.title === "B")!;
+      expect(nodeA.outLinks).toBe(1);
+      expect(nodeB.inLinks).toBe(1);
+    });
+
+    test("includes edges when includeEdges is true", async () => {
+      await writeFile(
+        join(testVaultPath, "A.md"),
+        "---\ntags: []\n---\nSee [[B]].",
+      );
+      await writeFile(
+        join(testVaultPath, "B.md"),
+        "---\ntags: []\n---\nContent.",
+      );
+      await vault.initialize();
+
+      const result = await vault.getVaultGraph({ includeEdges: true });
+
+      expect(result.edges).toBeDefined();
+      expect(result.edges).toHaveLength(1);
+      expect(result.edges![0]).toMatchObject({
+        source: "A.md",
+        target: "B",
+        targetExists: true,
+      });
+    });
+
+    test("omits edges when includeEdges is false", async () => {
+      await writeFile(
+        join(testVaultPath, "A.md"),
+        "---\ntags: []\n---\nSee [[B]].",
+      );
+      await writeFile(
+        join(testVaultPath, "B.md"),
+        "---\ntags: []\n---\nContent.",
+      );
+      await vault.initialize();
+
+      const result = await vault.getVaultGraph({ includeEdges: false });
+
+      expect(result.edges).toBeUndefined();
+    });
+
+    test("flags broken links in edges and stats", async () => {
+      await writeFile(
+        join(testVaultPath, "A.md"),
+        "---\ntags: []\n---\nSee [[Ghost]].",
+      );
+      await vault.initialize();
+
+      const result = await vault.getVaultGraph();
+
+      expect(result.stats.brokenLinks).toBe(1);
+      const edge = result.edges!.find((e) => e.target === "Ghost");
+      expect(edge!.targetExists).toBe(false);
+    });
+
+    test("counts orphan notes in stats", async () => {
+      await writeFile(
+        join(testVaultPath, "Linked.md"),
+        "---\ntags: []\n---\nSee [[Linked]].",
+      );
+      await writeFile(
+        join(testVaultPath, "Orphan.md"),
+        "---\ntags: []\n---\nNo links.",
+      );
+      await vault.initialize();
+
+      const result = await vault.getVaultGraph();
+
+      expect(result.stats.orphanNotes).toBe(1);
+    });
+
+    test("filters to orphan nodes when orphansOnly is true", async () => {
+      await writeFile(
+        join(testVaultPath, "Linked.md"),
+        "---\ntags: []\n---\nSee [[Linked]].",
+      );
+      await writeFile(
+        join(testVaultPath, "Orphan.md"),
+        "---\ntags: []\n---\nNo links.",
+      );
+      await vault.initialize();
+
+      const result = await vault.getVaultGraph({ orphansOnly: true });
+
+      expect(result.nodes.map((n) => n.title)).toEqual(["Orphan"]);
+    });
+  });
 });

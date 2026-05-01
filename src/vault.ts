@@ -449,4 +449,70 @@ export class ObsidianVault {
 
     return results.sort((a, b) => b.score - a.score).slice(0, limit);
   }
+
+  async getVaultGraph(
+    options: { includeEdges?: boolean; orphansOnly?: boolean } = {},
+  ): Promise<VaultGraph> {
+    const { includeEdges = true, orphansOnly = false } = options;
+    const notes = await this.storage.getAllNotes();
+
+    const titleToPath = new Map(
+      notes.map((n) => [n.title.toLowerCase(), n.path]),
+    );
+    const inCount = new Map<string, number>(notes.map((n) => [n.path, 0]));
+    const outCount = new Map<string, number>(notes.map((n) => [n.path, 0]));
+    const edges: GraphEdge[] = [];
+    let brokenLinks = 0;
+
+    for (const note of notes) {
+      for (const target of this.extractWikilinks(note.content)) {
+        const targetPath = titleToPath.get(
+          target.split("/").pop()!.toLowerCase(),
+        );
+        const targetExists = !!targetPath;
+
+        if (!targetExists) {
+          brokenLinks++;
+        } else {
+          inCount.set(targetPath, (inCount.get(targetPath) || 0) + 1);
+        }
+        outCount.set(note.path, (outCount.get(note.path) || 0) + 1);
+
+        if (includeEdges) {
+          edges.push({ source: note.path, target, targetExists });
+        }
+      }
+    }
+
+    let nodes: GraphNode[] = notes.map((n) => ({
+      path: n.path,
+      title: n.title,
+      inLinks: inCount.get(n.path) || 0,
+      outLinks: outCount.get(n.path) || 0,
+      tagCount: (n.frontmatter.tags || []).length,
+    }));
+
+    if (orphansOnly) {
+      nodes = nodes.filter((n) => n.inLinks === 0 && n.outLinks === 0);
+    }
+
+    const orphanNotes = nodes.filter(
+      (n) => n.inLinks === 0 && n.outLinks === 0,
+    ).length;
+
+    const totalLinks = includeEdges
+      ? edges.length
+      : Array.from(outCount.values()).reduce((a, b) => a + b, 0);
+
+    return {
+      nodes,
+      ...(includeEdges ? { edges } : {}),
+      stats: {
+        totalNotes: notes.length,
+        totalLinks,
+        brokenLinks,
+        orphanNotes,
+      },
+    };
+  }
 }
