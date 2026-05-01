@@ -261,4 +261,39 @@ export class ObsidianVault {
       )
       .filter((line) => line.endsWith("?") && line.length > 3);
   }
+
+  async findKnowledgeGaps(
+    options: { limitOrphanLinks?: number; limitQuestionNotes?: number } = {},
+  ): Promise<KnowledgeGapsResult> {
+    const { limitOrphanLinks = 50, limitQuestionNotes = 20 } = options;
+    const notes = await this.storage.getAllNotes();
+
+    const noteTitleSet = new Set(notes.map((n) => n.title.toLowerCase()));
+
+    const orphanLinks: OrphanLink[] = [];
+    const questionNotes: QuestionNote[] = [];
+
+    for (const note of notes) {
+      for (const target of this.extractWikilinks(note.content)) {
+        const targetTitle = target.split("/").pop()!.toLowerCase();
+        if (!noteTitleSet.has(targetTitle)) {
+          orphanLinks.push({ source: note.path, target });
+        }
+      }
+
+      const questions = this.extractQuestionLines(note.content);
+      if (questions.length > 0) {
+        questionNotes.push({ path: note.path, title: note.title, questions });
+      }
+    }
+
+    return {
+      orphanLinks: orphanLinks.slice(0, limitOrphanLinks),
+      questionNotes: questionNotes.slice(0, limitQuestionNotes),
+      stats: {
+        totalOrphanLinks: orphanLinks.length,
+        totalQuestionNotes: questionNotes.length,
+      },
+    };
+  }
 }

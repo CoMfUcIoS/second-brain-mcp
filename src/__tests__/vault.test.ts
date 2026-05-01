@@ -498,4 +498,86 @@ describe("ObsidianVault", () => {
       expect(notes).toBeDefined();
     });
   });
+
+  describe("findKnowledgeGaps", () => {
+    test("returns orphan links for wikilinks pointing to non-existent notes", async () => {
+      await writeFile(
+        join(testVaultPath, "Source.md"),
+        "---\ntags: []\n---\nSee [[Missing Note]] for details.",
+      );
+      await writeFile(
+        join(testVaultPath, "Existing.md"),
+        "---\ntags: []\n---\nSome content.",
+      );
+      await vault.initialize();
+
+      const result = await vault.findKnowledgeGaps();
+
+      expect(result.orphanLinks).toHaveLength(1);
+      expect(result.orphanLinks[0].source).toBe("Source.md");
+      expect(result.orphanLinks[0].target).toBe("Missing Note");
+      expect(result.stats.totalOrphanLinks).toBe(1);
+    });
+
+    test("does not flag wikilinks that resolve to existing notes", async () => {
+      await writeFile(
+        join(testVaultPath, "Source.md"),
+        "---\ntags: []\n---\nSee [[Existing]] for details.",
+      );
+      await writeFile(
+        join(testVaultPath, "Existing.md"),
+        "---\ntags: []\n---\nSome content.",
+      );
+      await vault.initialize();
+
+      const result = await vault.findKnowledgeGaps();
+
+      expect(result.orphanLinks).toHaveLength(0);
+    });
+
+    test("returns question lines from note content", async () => {
+      await writeFile(
+        join(testVaultPath, "Questions.md"),
+        "---\ntags: []\n---\nHow does this work?\nThis is a statement.\nWhy does it fail?",
+      );
+      await vault.initialize();
+
+      const result = await vault.findKnowledgeGaps();
+
+      const q = result.questionNotes.find((n) => n.title === "Questions");
+      expect(q).toBeDefined();
+      expect(q!.questions).toContain("How does this work?");
+      expect(q!.questions).toContain("Why does it fail?");
+      expect(q!.questions).not.toContain("This is a statement.");
+    });
+
+    test("skips question marks inside code blocks", async () => {
+      await writeFile(
+        join(testVaultPath, "Code.md"),
+        "---\ntags: []\n---\n```\nif (x?) return;\n```\nReal question?",
+      );
+      await vault.initialize();
+
+      const result = await vault.findKnowledgeGaps();
+
+      const q = result.questionNotes.find((n) => n.title === "Code");
+      expect(q!.questions).toHaveLength(1);
+      expect(q!.questions[0]).toBe("Real question?");
+    });
+
+    test("respects limitOrphanLinks option", async () => {
+      for (let i = 0; i < 5; i++) {
+        await writeFile(
+          join(testVaultPath, `Note${i}.md`),
+          `---\ntags: []\n---\nSee [[Ghost${i}]].`,
+        );
+      }
+      await vault.initialize();
+
+      const result = await vault.findKnowledgeGaps({ limitOrphanLinks: 2 });
+
+      expect(result.orphanLinks).toHaveLength(2);
+      expect(result.stats.totalOrphanLinks).toBe(5);
+    });
+  });
 });
