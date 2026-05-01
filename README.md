@@ -1,4 +1,4 @@
-# Obsidian MCP Second Brain Server
+# Second Brain MCP Server
 
 A read-only MCP server for intelligent, secure access to your Obsidian vault—enabling semantic search, metadata filtering, and more for LLMs.
 
@@ -38,7 +38,7 @@ This server works with **any directory of Markdown files** — not just Obsidian
 Point `--vault-path` at your Foam workspace root. No configuration changes needed:
 
 ```bash
-npx -y @comfucios/obsidian-mcp-sb --vault-path "/path/to/your/foam-workspace"
+npx -y @comfucios/second-brain-mcp --vault-path "/path/to/your/foam-workspace"
 ```
 
 Foam features that work out of the box:
@@ -70,30 +70,30 @@ For write operations, consider using dedicated Obsidian plugins with built-in sa
 ### One-Click Installation
 
 - **VS Code:**
-  [![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_Obsidian_MCP_SB-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vscode.dev/redirect/mcp/install?name=obsidian-mcp-sb&config=%7B%22type%22%3A%22stdio%22%2C%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40comfucios%2Fobsidian-mcp-sb%22%5D%7D)
+  [![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_Second_Brain_MCP-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://vscode.dev/redirect/mcp/install?name=second-brain-mcp&config=%7B%22type%22%3A%22stdio%22%2C%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40comfucios%2Fsecond-brain-mcp%22%5D%7D)
 - **VS Code Insiders:**
-  [![Install in VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-Install_Obsidian_MCP_SB-24bfa5?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=obsidian-mcp-sb&config=%7B%22type%22%3A%22stdio%22%2C%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40comfucios%2Fobsidian-mcp-sb%22%5D%7D)
+  [![Install in VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-Install_Second_Brain_MCP-24bfa5?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=second-brain-mcp&config=%7B%22type%22%3A%22stdio%22%2C%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40comfucios%2Fsecond-brain-mcp%22%5D%7D)
 - **Cursor:**
-  [![Install in Cursor](https://img.shields.io/badge/Cursor-Install_Obsidian_MCP_SB-00D8FF?style=flat-square&logo=cursor&logoColor=white)](https://cursor.com/en/install-mcp?name=obsidian-mcp-sb&config=eyJ0eXBlIjoic3RkaW8iLCJjb21tYW5kIjoibnB4IC15IEBjb21mdWNpb3Mvb2JzaWRpYW4tbWNwLXNiIiwiZW52Ijp7fX0=)
+  [![Install in Cursor](https://img.shields.io/badge/Cursor-Install_Second_Brain_MCP-00D8FF?style=flat-square&logo=cursor&logoColor=white)](https://cursor.com/en/install-mcp?name=second-brain-mcp&config=eyJ0eXBlIjoic3RkaW8iLCJjb21tYW5kIjoibnB4IC15IEBjb21mdWNpb3Mvc2Vjb25kLWJyYWluLW1jcCIsImVudiI6e319)
 
 ### Manual Installation
 
 No installation needed! Use directly with npx:
 
 ```bash
-npx -y @comfucios/obsidian-mcp-sb --vault-path "/path/to/your/vault"
+npx -y @comfucios/second-brain-mcp --vault-path "/path/to/your/vault"
 ```
 
 #### Local Development
 
 ```bash
-cd obsidian-mcp-sb
+cd second-brain-mcp
 npm install
 npm run build
 npm link
 ```
 
-This makes the server available globally as `obsidian-mcp-sb`.
+This makes the server available globally as `second-brain-mcp`.
 
 ### Claude Code & Claude Desktop
 
@@ -102,7 +102,7 @@ This makes the server available globally as `obsidian-mcp-sb`.
 Add the server using:
 
 ```bash
-claude mcp add obsidian-sb -- npx -y @comfucios/obsidian-mcp-sb --vault-path "/path/to/your/vault"
+claude mcp add second-brain -- npx -y @comfucios/second-brain-mcp --vault-path "/path/to/your/vault"
 ```
 
 #### Claude Desktop
@@ -115,11 +115,11 @@ Add to your Claude Desktop configuration file:
 ```json
 {
   "mcpServers": {
-    "obsidian-sb": {
+    "second-brain": {
       "command": "npx",
       "args": [
         "-y",
-        "@comfucios/obsidian-mcp-sb",
+        "@comfucios/second-brain-mcp",
         "--vault-path",
         "/path/to/your/vault"
       ]
@@ -144,11 +144,11 @@ Add to your MCP configuration file.
 ```json
 {
   "mcpServers": {
-    "obsidian-sb": {
+    "second-brain": {
       "command": "npx",
       "args": [
         "-y",
-        "@comfucios/obsidian-mcp-sb",
+        "@comfucios/second-brain-mcp",
         "--vault-path",
         "/Users/ioanniskarasavvaidis/Documents/Obsidian Vault"
       ]
@@ -168,7 +168,7 @@ You can configure multiple vault instances:
       "command": "npx",
       "args": [
         "-y",
-        "@comfucios/obsidian-mcp-sb",
+        "@comfucios/second-brain-mcp",
         "--vault-path",
         "/Users/username/Documents/Personal Vault"
       ]
@@ -177,7 +177,7 @@ You can configure multiple vault instances:
       "command": "npx",
       "args": [
         "-y",
-        "@comfucios/obsidian-mcp-sb",
+        "@comfucios/second-brain-mcp",
         "--vault-path",
         "/Users/username/Documents/Work Vault"
       ]
@@ -193,8 +193,8 @@ If you're developing locally with `npm link`:
 ```json
 {
   "mcpServers": {
-    "obsidian-sb": {
-      "command": "obsidian-mcp-sb",
+    "second-brain": {
+      "command": "second-brain-mcp",
       "args": ["--vault-path", "/path/to/your/vault"]
     }
   }
@@ -226,7 +226,7 @@ See [docs/README.md](docs/README.md) for:
 Run the server instantly with npx (no install required):
 
 ```bash
-npx -y @comfucios/obsidian-mcp-sb --vault-path "/path/to/your/vault"
+npx -y @comfucios/second-brain-mcp --vault-path "/path/to/your/vault"
 ```
 
 Or add to Claude Code/Claude Desktop (see Configuration & Installation below).
@@ -282,7 +282,7 @@ See [docs/dependencies.md](docs/dependencies.md) for a full list of production a
 
 ## Support
 
-If obsidian-mcp-sb saves you time, consider [sponsoring me on GitHub](https://github.com/sponsors/comfucios) or [buy me a coffee](https://www.buymeacoffee.com/comfucios).
+If second-brain-mcp saves you time, consider [sponsoring me on GitHub](https://github.com/sponsors/comfucios) or [buy me a coffee](https://www.buymeacoffee.com/comfucios).
 
 ## License
 

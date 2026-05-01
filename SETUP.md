@@ -14,11 +14,11 @@ No installation needed! Just configure Claude Code:
    ```json
    {
      "mcpServers": {
-       "obsidian-sb": {
+       "second-brain": {
          "command": "npx",
          "args": [
            "-y",
-           "@comfucios/obsidian-mcp-sb",
+           "@comfucios/second-brain-mcp",
            "--vault-path",
            "/Users/ioanniskarasavvaidis/Documents/Obsidian Vault"
          ]
@@ -44,7 +44,7 @@ You can configure multiple vaults by adding multiple server entries:
       "command": "npx",
       "args": [
         "-y",
-        "@comfucios/obsidian-mcp-sb",
+        "@comfucios/second-brain-mcp",
         "--vault-path",
         "/Users/username/Documents/Personal Vault"
       ]
@@ -53,7 +53,7 @@ You can configure multiple vaults by adding multiple server entries:
       "command": "npx",
       "args": [
         "-y",
-        "@comfucios/obsidian-mcp-sb",
+        "@comfucios/second-brain-mcp",
         "--vault-path",
         "/Users/username/Documents/Work Vault"
       ]
@@ -69,7 +69,7 @@ For development or customization:
 1. **Install dependencies**
 
    ```bash
-   cd obsidian-mcp-sb
+   cd second-brain-mcp
    npm install
    ```
 
@@ -90,8 +90,8 @@ For development or customization:
    ```json
    {
      "mcpServers": {
-       "obsidian-sb": {
-         "command": "obsidian-mcp-sb",
+       "second-brain": {
+         "command": "second-brain-mcp",
          "args": ["--vault-path", "/path/to/your/vault"]
        }
      }
@@ -105,7 +105,7 @@ For development or customization:
 You can test the server directly using stdio:
 
 ```bash
-cd obsidian-mcp-sb
+cd second-brain-mcp
 npm start
 ```
 
@@ -169,11 +169,11 @@ All configuration can be done via CLI arguments in your `mcp.json` file. No need
 ```json
 {
   "mcpServers": {
-    "obsidian-sb": {
+    "second-brain": {
       "command": "npx",
       "args": [
         "-y",
-        "@comfucios/obsidian-mcp-sb",
+        "@comfucios/second-brain-mcp",
         "--vault-path", "/Users/username/Documents/Vault",
         "--index-patterns", "Work/**/*.md,Projects/**/*.md,Archive/**/*.md",
         "--exclude-patterns", ".trash/**,node_modules/**",
@@ -210,11 +210,11 @@ Use the `--index-patterns` argument:
 ```json
 {
   "mcpServers": {
-    "obsidian-sb": {
+    "second-brain": {
       "command": "npx",
       "args": [
         "-y",
-        "@comfucios/obsidian-mcp-sb",
+        "@comfucios/second-brain-mcp",
         "--vault-path", "/path/to/vault",
         "--index-patterns", "Work/**/*.md,Projects/**/*.md,CustomFolder/**/*.md"
       ]
@@ -230,11 +230,11 @@ Use the `--exclude-patterns` argument:
 ```json
 {
   "mcpServers": {
-    "obsidian-sb": {
+    "second-brain": {
       "command": "npx",
       "args": [
         "-y",
-        "@comfucios/obsidian-mcp-sb",
+        "@comfucios/second-brain-mcp",
         "--vault-path", "/path/to/vault",
         "--exclude-patterns", "Archive/**/*.md,_Meta/**,.trash/**,Private/**/*.md"
       ]
