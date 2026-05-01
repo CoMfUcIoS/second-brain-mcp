@@ -15,6 +15,10 @@ A read-only MCP server for intelligent, secure access to your Obsidian vault—e
 - **Smart Summarization**: Generate summaries of note collections
 - **Recent Notes**: Quick access to recently modified notes
 - **Archive Control**: Optionally include archived notes in searches
+- **Knowledge Gaps**: Detect orphaned wikilinks and open questions across the vault
+- **Spaced Review**: Surface stale notes ranked by link importance for periodic review
+- **Related Notes**: Score-based discovery of related notes via shared links, tags, and title overlap
+- **Vault Graph**: Full link graph with hub detection, broken link stats, and orphan analysis
 - **Security**: Path traversal protection, file size limits, input validation
 
 ## Read-Only Design
@@ -249,7 +253,6 @@ See [docs/dependencies.md](docs/dependencies.md) for a full list of production a
 ## Support
 
 If obsidian-mcp-sb saves you time, consider [sponsoring me on GitHub](https://github.com/sponsors/comfucios) or [buy me a coffee](https://www.buymeacoffee.com/comfucios).
-
 
 ## License
 
