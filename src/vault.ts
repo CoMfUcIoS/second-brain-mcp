@@ -1,10 +1,18 @@
-import { readFile, stat } from 'fs/promises';
-import { glob } from 'glob';
-import matter from 'gray-matter';
-import { basename, relative } from 'path';
-import { Note, SearchOptions, VaultConfig, isValidType, isValidStatus, isValidCategory, NoteFrontmatter } from './types.js';
-import { IStorage } from './storage.js';
-import { createStorage } from './storage-factory.js';
+import { readFile, stat } from "fs/promises";
+import { glob } from "glob";
+import matter from "gray-matter";
+import { basename, relative } from "path";
+import {
+  Note,
+  SearchOptions,
+  VaultConfig,
+  isValidType,
+  isValidStatus,
+  isValidCategory,
+  NoteFrontmatter,
+} from "./types.js";
+import { IStorage } from "./storage.js";
+import { createStorage } from "./storage-factory.js";
 
 /**
  * Manages indexing and searching of an Obsidian vault
@@ -25,7 +33,7 @@ export class ObsidianVault {
    */
   async initialize(): Promise<void> {
     try {
-      console.error('Initializing Obsidian vault...');
+      console.error("Initializing Obsidian vault...");
       this.indexErrors = []; // Reset errors
       await this.storage.initialize();
       const notes = await this.indexNotes();
@@ -33,36 +41,51 @@ export class ObsidianVault {
       console.error(`Indexed ${notes.length} notes`);
 
       if (this.indexErrors.length > 0) {
-        console.error(`Warning: ${this.indexErrors.length} file(s) failed to index`);
+        console.error(
+          `Warning: ${this.indexErrors.length} file(s) failed to index`,
+        );
         // Log first few errors for debugging
-        this.indexErrors.slice(0, 5).forEach(err => {
+        this.indexErrors.slice(0, 5).forEach((err) => {
           console.error(`  - ${err.path}: ${err.error}`);
         });
       }
     } catch (error) {
-      console.error('Failed to initialize vault:', error instanceof Error ? error.message : String(error));
-      throw new Error(`Vault initialization failed: ${error instanceof Error ? error.message : String(error)}`);
+      console.error(
+        "Failed to initialize vault:",
+        error instanceof Error ? error.message : String(error),
+      );
+      throw new Error(
+        `Vault initialization failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
   private async indexNotes(): Promise<Note[]> {
     const files: string[] = [];
 
+    // Yield to the event loop so any pending I/O callbacks (e.g. writeFile
+    // completions) have settled before we start the directory scan.
+    await new Promise<void>((resolve) => setImmediate(resolve));
+
     try {
       for (const pattern of this.config.indexPatterns) {
         const matches = await glob(pattern, {
           cwd: this.config.vaultPath,
           absolute: true,
-          ignore: this.config.excludePatterns
+          ignore: this.config.excludePatterns,
         });
         files.push(...matches);
       }
     } catch (error) {
-      throw new Error(`Failed to scan vault directory: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Failed to scan vault directory: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
 
     if (files.length === 0) {
-      console.error('Warning: No markdown files found matching the index patterns');
+      console.error(
+        "Warning: No markdown files found matching the index patterns",
+      );
     }
 
     const notesWithPossibleNulls = await Promise.all(
@@ -73,27 +96,28 @@ export class ObsidianVault {
           if (fileStats.size > this.config.maxFileSize) {
             this.indexErrors.push({
               path: filePath,
-              error: `File too large (${Math.round(fileStats.size / 1024 / 1024)}MB, max ${Math.round(this.config.maxFileSize / 1024 / 1024)}MB)`
+              error: `File too large (${Math.round(fileStats.size / 1024 / 1024)}MB, max ${Math.round(this.config.maxFileSize / 1024 / 1024)}MB)`,
             });
             return null;
           }
 
-          const content = await readFile(filePath, 'utf-8');
+          const content = await readFile(filePath, "utf-8");
           const { data, content: markdownContent } = matter(content);
 
-          const title = basename(filePath, '.md');
+          const title = basename(filePath, ".md");
           const excerpt = this.createExcerpt(markdownContent);
 
           // Provide safe defaults for missing frontmatter fields with validation
-          const { created, modified, tags, type, status, category, ...rest } = data;
+          const { created, modified, tags, type, status, category, ...rest } =
+            data;
           const frontmatter: NoteFrontmatter = {
-            created: typeof created === 'string' ? created : '',
-            modified: typeof modified === 'string' ? modified : '',
+            created: typeof created === "string" ? created : "",
+            modified: typeof modified === "string" ? modified : "",
             tags: Array.isArray(tags) ? tags : [],
-            type: isValidType(type) ? type : 'note',
-            status: isValidStatus(status) ? status : 'active',
-            category: isValidCategory(category) ? category : 'personal',
-            ...rest // Add other custom fields after validation
+            type: isValidType(type) ? type : "note",
+            status: isValidStatus(status) ? status : "active",
+            category: isValidCategory(category) ? category : "personal",
+            ...rest, // Add other custom fields after validation
           };
 
           // Use path.relative for secure path handling
@@ -104,14 +128,15 @@ export class ObsidianVault {
             title,
             content: markdownContent,
             frontmatter,
-            excerpt
+            excerpt,
           } as Note;
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
           this.indexErrors.push({ path: filePath, error: errorMessage });
           return null;
         }
-      })
+      }),
     );
 
     return notesWithPossibleNulls.filter((n): n is Note => n !== null);
@@ -120,39 +145,44 @@ export class ObsidianVault {
   private createExcerpt(content: string, length: number = 200): string {
     // Pre-slice to avoid processing entire large files
     const maxProcessLength = length * 3;
-    const contentToProcess = content.length > maxProcessLength ? content.slice(0, maxProcessLength) : content;
+    const contentToProcess =
+      content.length > maxProcessLength
+        ? content.slice(0, maxProcessLength)
+        : content;
 
     const cleanContent = contentToProcess
       // Remove code blocks
-      .replace(/```[\s\S]*?```/g, '')
+      .replace(/```[\s\S]*?```/g, "")
       // Remove inline code
-      .replace(/`[^`]+`/g, '')
+      .replace(/`[^`]+`/g, "")
       // Remove images
-      .replace(/!\[.*?\]\(.*?\)/g, '')
+      .replace(/!\[.*?\]\(.*?\)/g, "")
       // Remove links but keep text
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
       // Remove wiki links but keep text
-      .replace(/\[\[([^\]|]+)(\|[^\]]+)?\]\]/g, '$1')
+      .replace(/\[\[([^\]|]+)(\|[^\]]+)?\]\]/g, "$1")
       // Remove headers
-      .replace(/^#{1,6}\s+/gm, '')
+      .replace(/^#{1,6}\s+/gm, "")
       // Remove bold/italic
-      .replace(/(\*\*|__)(.*?)\1/g, '$2')
-      .replace(/(\*|_)(.*?)\1/g, '$2')
+      .replace(/(\*\*|__)(.*?)\1/g, "$2")
+      .replace(/(\*|_)(.*?)\1/g, "$2")
       // Remove blockquotes
-      .replace(/^>\s+/gm, '')
+      .replace(/^>\s+/gm, "")
       // Remove horizontal rules
-      .replace(/^[-*_]{3,}$/gm, '')
+      .replace(/^[-*_]{3,}$/gm, "")
       // Remove list markers
-      .replace(/^[\s]*[-*+]\s+/gm, '')
-      .replace(/^[\s]*\d+\.\s+/gm, '')
+      .replace(/^[\s]*[-*+]\s+/gm, "")
+      .replace(/^[\s]*\d+\.\s+/gm, "")
       // Remove extra whitespace
-      .replace(/\n{2,}/g, ' ')
-      .replace(/\s+/g, ' ')
+      .replace(/\n{2,}/g, " ")
+      .replace(/\s+/g, " ")
       .trim();
 
-    return cleanContent.slice(0, length) + (cleanContent.length > length ? '...' : '');
+    return (
+      cleanContent.slice(0, length) +
+      (cleanContent.length > length ? "..." : "")
+    );
   }
-
 
   /**
    * Search notes with fuzzy matching and filters
