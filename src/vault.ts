@@ -10,6 +10,15 @@ import {
   isValidStatus,
   isValidCategory,
   NoteFrontmatter,
+  KnowledgeGapsResult,
+  ReviewNote,
+  RelatedNote,
+  VaultGraph,
+  OrphanLink,
+  QuestionNote,
+  GraphNode,
+  GraphEdge,
+  parseDate,
 } from "./types.js";
 import { IStorage } from "./storage.js";
 import { createStorage } from "./storage-factory.js";
@@ -227,5 +236,283 @@ export class ObsidianVault {
    */
   async getRecentNotes(limit: number = 10): Promise<Note[]> {
     return this.storage.getRecentNotes(limit);
+  }
+
+  private extractWikilinks(content: string): string[] {
+    return Array.from(
+      content.matchAll(/\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g),
+      (m) => m[1].trim(),
+    );
+  }
+
+  private extractQuestionLines(content: string): string[] {
+    const withoutCode = content
+      .replace(/```[\s\S]*?```/g, "")
+      .replace(/`[^`]+`/g, "");
+    return withoutCode
+      .split("\n")
+      .map((line) =>
+        line
+          .replace(/^#{1,6}\s+/, "")
+          .replace(/^>\s+/, "")
+          .replace(/^[\s]*[-*+]\s+/, "")
+          .replace(/^[\s]*\d+\.\s+/, "")
+          .replace(/\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g, "$1")
+          .trim(),
+      )
+      .filter((line) => line.endsWith("?") && line.length > 3);
+  }
+
+  async findKnowledgeGaps(
+    options: { limitOrphanLinks?: number; limitQuestionNotes?: number } = {},
+  ): Promise<KnowledgeGapsResult> {
+    const { limitOrphanLinks = 50, limitQuestionNotes = 20 } = options;
+    const notes = await this.storage.getAllNotes();
+
+    const noteTitleSet = new Set(notes.map((n) => n.title.toLowerCase()));
+
+    const orphanLinks: OrphanLink[] = [];
+    const questionNotes: QuestionNote[] = [];
+
+    for (const note of notes) {
+      for (const target of this.extractWikilinks(note.content)) {
+        const targetTitle = target.split("/").pop()!.toLowerCase();
+        if (!noteTitleSet.has(targetTitle)) {
+          orphanLinks.push({ source: note.path, target });
+        }
+      }
+
+      const questions = this.extractQuestionLines(note.content);
+      if (questions.length > 0) {
+        questionNotes.push({ path: note.path, title: note.title, questions });
+      }
+    }
+
+    return {
+      orphanLinks: orphanLinks.slice(0, limitOrphanLinks),
+      questionNotes: questionNotes.slice(0, limitQuestionNotes),
+      stats: {
+        totalOrphanLinks: orphanLinks.length,
+        totalQuestionNotes: questionNotes.length,
+      },
+    };
+  }
+
+  async getNotesForReview(
+    options: { daysSinceModified?: number; limit?: number } = {},
+  ): Promise<ReviewNote[]> {
+    const { daysSinceModified = 14, limit = 10 } = options;
+    const notes = await this.storage.getAllNotes();
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const cutoff = new Date(today);
+    cutoff.setDate(cutoff.getDate() - daysSinceModified);
+
+    const inboundCount = new Map<string, number>(notes.map((n) => [n.path, 0]));
+    const titleToPath = new Map(
+      notes.map((n) => [n.title.toLowerCase(), n.path]),
+    );
+    for (const note of notes) {
+      for (const target of this.extractWikilinks(note.content)) {
+        const targetPath = titleToPath.get(
+          target.split("/").pop()!.toLowerCase(),
+        );
+        if (targetPath) {
+          inboundCount.set(targetPath, (inboundCount.get(targetPath) || 0) + 1);
+        }
+      }
+    }
+
+    const candidates: ReviewNote[] = [];
+
+    for (const note of notes) {
+      const dateStr =
+        (note.frontmatter.modified as string | undefined) ||
+        (note.frontmatter.created as string | undefined);
+      if (!dateStr) continue;
+      const noteDate = parseDate(dateStr);
+      if (!noteDate || noteDate >= cutoff) continue;
+
+      const diffDays = Math.round(
+        (today.getTime() - noteDate.getTime()) / (1000 * 60 * 60 * 24),
+      );
+
+      candidates.push({
+        path: note.path,
+        title: note.title,
+        excerpt: note.excerpt,
+        tags: note.frontmatter.tags || [],
+        type: note.frontmatter.type,
+        status: note.frontmatter.status,
+        category: note.frontmatter.category,
+        modified: note.frontmatter.modified as string | undefined,
+        daysSinceModified: diffDays,
+      });
+    }
+
+    candidates.sort((a, b) => {
+      const daysDiff = b.daysSinceModified - a.daysSinceModified;
+      if (daysDiff !== 0) return daysDiff;
+      return (inboundCount.get(b.path) || 0) - (inboundCount.get(a.path) || 0);
+    });
+
+    return candidates.slice(0, limit);
+  }
+
+  async findRelatedNotes(
+    notePath: string,
+    options: { limit?: number } = {},
+  ): Promise<RelatedNote[]> {
+    const { limit = 10 } = options;
+    const notes = await this.storage.getAllNotes();
+
+    const source = notes.find((n) => n.path === notePath);
+    if (!source) return [];
+
+    const sourceOutLinks = new Set(
+      this.extractWikilinks(source.content).map((t) =>
+        t.split("/").pop()!.toLowerCase(),
+      ),
+    );
+    const sourceTags = new Set(source.frontmatter.tags || []);
+    const sourceTitleWords = new Set(
+      source.title
+        .toLowerCase()
+        .split(/\W+/)
+        .filter((w) => w.length >= 4),
+    );
+
+    const results: RelatedNote[] = [];
+
+    for (const candidate of notes) {
+      if (candidate.path === notePath) continue;
+
+      let score = 0;
+      const relationships: string[] = [];
+
+      if (sourceOutLinks.has(candidate.title.toLowerCase())) {
+        score += 5;
+        relationships.push("this note links to it");
+      }
+
+      const candidateOutLinks = new Set(
+        this.extractWikilinks(candidate.content).map((t) =>
+          t.split("/").pop()!.toLowerCase(),
+        ),
+      );
+      if (candidateOutLinks.has(source.title.toLowerCase())) {
+        score += 5;
+        relationships.push("links to this note");
+      }
+
+      const sharedTags = (candidate.frontmatter.tags || []).filter((t) =>
+        sourceTags.has(t),
+      );
+      if (sharedTags.length > 0) {
+        score += sharedTags.length * 3;
+        relationships.push(
+          `${sharedTags.length} shared tag${sharedTags.length > 1 ? "s" : ""}: ${sharedTags.join(", ")}`,
+        );
+      }
+
+      const candidateTitleWords = candidate.title
+        .toLowerCase()
+        .split(/\W+/)
+        .filter((w) => w.length >= 4);
+      const sharedWords = candidateTitleWords.filter((w) =>
+        sourceTitleWords.has(w),
+      );
+      if (sharedWords.length > 0) {
+        score += sharedWords.length;
+        relationships.push(
+          `shared title word${sharedWords.length > 1 ? "s" : ""}: ${sharedWords.join(", ")}`,
+        );
+      }
+
+      if (score > 0) {
+        results.push({
+          path: candidate.path,
+          title: candidate.title,
+          excerpt: candidate.excerpt,
+          tags: candidate.frontmatter.tags || [],
+          type: candidate.frontmatter.type,
+          status: candidate.frontmatter.status,
+          category: candidate.frontmatter.category,
+          modified: candidate.frontmatter.modified as string | undefined,
+          score,
+          relationships,
+        });
+      }
+    }
+
+    return results.sort((a, b) => b.score - a.score).slice(0, limit);
+  }
+
+  async getVaultGraph(
+    options: { includeEdges?: boolean; orphansOnly?: boolean } = {},
+  ): Promise<VaultGraph> {
+    const { includeEdges = true, orphansOnly = false } = options;
+    const notes = await this.storage.getAllNotes();
+
+    const titleToPath = new Map(
+      notes.map((n) => [n.title.toLowerCase(), n.path]),
+    );
+    const inCount = new Map<string, number>(notes.map((n) => [n.path, 0]));
+    const outCount = new Map<string, number>(notes.map((n) => [n.path, 0]));
+    const edges: GraphEdge[] = [];
+    let brokenLinks = 0;
+
+    for (const note of notes) {
+      for (const target of this.extractWikilinks(note.content)) {
+        const targetPath = titleToPath.get(
+          target.split("/").pop()!.toLowerCase(),
+        );
+        const targetExists = !!targetPath;
+
+        if (!targetExists) {
+          brokenLinks++;
+        } else {
+          inCount.set(targetPath, (inCount.get(targetPath) || 0) + 1);
+        }
+        outCount.set(note.path, (outCount.get(note.path) || 0) + 1);
+
+        if (includeEdges) {
+          edges.push({ source: note.path, target, targetExists });
+        }
+      }
+    }
+
+    let nodes: GraphNode[] = notes.map((n) => ({
+      path: n.path,
+      title: n.title,
+      inLinks: inCount.get(n.path) || 0,
+      outLinks: outCount.get(n.path) || 0,
+      tagCount: (n.frontmatter.tags || []).length,
+    }));
+
+    if (orphansOnly) {
+      nodes = nodes.filter((n) => n.inLinks === 0 && n.outLinks === 0);
+    }
+
+    const orphanNotes = nodes.filter(
+      (n) => n.inLinks === 0 && n.outLinks === 0,
+    ).length;
+
+    const totalLinks = includeEdges
+      ? edges.length
+      : Array.from(outCount.values()).reduce((a, b) => a + b, 0);
+
+    return {
+      nodes,
+      ...(includeEdges ? { edges } : {}),
+      stats: {
+        totalNotes: notes.length,
+        totalLinks,
+        brokenLinks,
+        orphanNotes,
+      },
+    };
   }
 }

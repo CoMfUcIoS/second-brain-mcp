@@ -498,4 +498,396 @@ describe("ObsidianVault", () => {
       expect(notes).toBeDefined();
     });
   });
+
+  describe("findKnowledgeGaps", () => {
+    test("returns orphan links for wikilinks pointing to non-existent notes", async () => {
+      await writeFile(
+        join(testVaultPath, "Source.md"),
+        "---\ntags: []\n---\nSee [[Missing Note]] for details.",
+      );
+      await writeFile(
+        join(testVaultPath, "Existing.md"),
+        "---\ntags: []\n---\nSome content.",
+      );
+      await vault.initialize();
+
+      const result = await vault.findKnowledgeGaps();
+
+      expect(result.orphanLinks).toHaveLength(1);
+      expect(result.orphanLinks[0].source).toBe("Source.md");
+      expect(result.orphanLinks[0].target).toBe("Missing Note");
+      expect(result.stats.totalOrphanLinks).toBe(1);
+    });
+
+    test("does not flag wikilinks that resolve to existing notes", async () => {
+      await writeFile(
+        join(testVaultPath, "Source.md"),
+        "---\ntags: []\n---\nSee [[Existing]] for details.",
+      );
+      await writeFile(
+        join(testVaultPath, "Existing.md"),
+        "---\ntags: []\n---\nSome content.",
+      );
+      await vault.initialize();
+
+      const result = await vault.findKnowledgeGaps();
+
+      expect(result.orphanLinks).toHaveLength(0);
+    });
+
+    test("returns question lines from note content", async () => {
+      await writeFile(
+        join(testVaultPath, "Questions.md"),
+        "---\ntags: []\n---\nHow does this work?\nThis is a statement.\nWhy does it fail?",
+      );
+      await vault.initialize();
+
+      const result = await vault.findKnowledgeGaps();
+
+      const q = result.questionNotes.find((n) => n.title === "Questions");
+      expect(q).toBeDefined();
+      expect(q!.questions).toContain("How does this work?");
+      expect(q!.questions).toContain("Why does it fail?");
+      expect(q!.questions).not.toContain("This is a statement.");
+    });
+
+    test("skips question marks inside code blocks", async () => {
+      await writeFile(
+        join(testVaultPath, "Code.md"),
+        "---\ntags: []\n---\n```\nif (x?) return;\n```\nReal question?",
+      );
+      await vault.initialize();
+
+      const result = await vault.findKnowledgeGaps();
+
+      const q = result.questionNotes.find((n) => n.title === "Code");
+      expect(q!.questions).toHaveLength(1);
+      expect(q!.questions[0]).toBe("Real question?");
+    });
+
+    test("respects limitOrphanLinks option", async () => {
+      for (let i = 0; i < 5; i++) {
+        await writeFile(
+          join(testVaultPath, `Note${i}.md`),
+          `---\ntags: []\n---\nSee [[Ghost${i}]].`,
+        );
+      }
+      await vault.initialize();
+
+      const result = await vault.findKnowledgeGaps({ limitOrphanLinks: 2 });
+
+      expect(result.orphanLinks).toHaveLength(2);
+      expect(result.stats.totalOrphanLinks).toBe(5);
+    });
+  });
+
+  describe("getNotesForReview", () => {
+    function daysAgo(n: number): string {
+      const d = new Date();
+      d.setDate(d.getDate() - n);
+      return d.toISOString().split("T")[0];
+    }
+
+    test("returns notes not modified within the threshold", async () => {
+      await writeFile(
+        join(testVaultPath, "Old.md"),
+        `---\nmodified: "${daysAgo(30)}"\ntags: []\n---\nOld content.`,
+      );
+      await writeFile(
+        join(testVaultPath, "Recent.md"),
+        `---\nmodified: "${daysAgo(3)}"\ntags: []\n---\nRecent content.`,
+      );
+      await vault.initialize();
+
+      const result = await vault.getNotesForReview({ daysSinceModified: 14 });
+
+      expect(result.map((n) => n.title)).toContain("Old");
+      expect(result.map((n) => n.title)).not.toContain("Recent");
+    });
+
+    test("includes daysSinceModified on each result", async () => {
+      await writeFile(
+        join(testVaultPath, "OldNote.md"),
+        `---\nmodified: "${daysAgo(20)}"\ntags: []\n---\nContent.`,
+      );
+      await vault.initialize();
+
+      const result = await vault.getNotesForReview({ daysSinceModified: 14 });
+
+      expect(result[0].daysSinceModified).toBeGreaterThanOrEqual(20);
+    });
+
+    test("excludes notes with no date", async () => {
+      await writeFile(
+        join(testVaultPath, "NoDate.md"),
+        "---\ntags: []\n---\nNo date.",
+      );
+      await vault.initialize();
+
+      const result = await vault.getNotesForReview({ daysSinceModified: 0 });
+
+      expect(result.map((n) => n.title)).not.toContain("NoDate");
+    });
+
+    test("respects limit option", async () => {
+      for (let i = 0; i < 5; i++) {
+        await writeFile(
+          join(testVaultPath, `Old${i}.md`),
+          `---\nmodified: "${daysAgo(30 + i)}"\ntags: []\n---\nContent.`,
+        );
+      }
+      await vault.initialize();
+
+      const result = await vault.getNotesForReview({
+        daysSinceModified: 14,
+        limit: 3,
+      });
+
+      expect(result).toHaveLength(3);
+    });
+
+    test("sorts by most overdue first", async () => {
+      await writeFile(
+        join(testVaultPath, "VeryOld.md"),
+        `---\nmodified: "${daysAgo(60)}"\ntags: []\n---\nContent.`,
+      );
+      await writeFile(
+        join(testVaultPath, "SlightlyOld.md"),
+        `---\nmodified: "${daysAgo(20)}"\ntags: []\n---\nContent.`,
+      );
+      await vault.initialize();
+
+      const result = await vault.getNotesForReview({ daysSinceModified: 14 });
+
+      expect(result[0].title).toBe("VeryOld");
+    });
+  });
+
+  describe("findRelatedNotes", () => {
+    test("returns empty array for unknown path", async () => {
+      await writeFile(
+        join(testVaultPath, "A.md"),
+        "---\ntags: []\n---\nContent.",
+      );
+      await vault.initialize();
+
+      const result = await vault.findRelatedNotes("does-not-exist.md");
+
+      expect(result).toHaveLength(0);
+    });
+
+    test("scores notes that the source links to", async () => {
+      await writeFile(
+        join(testVaultPath, "Source.md"),
+        "---\ntags: []\n---\nSee [[Target]].",
+      );
+      await writeFile(
+        join(testVaultPath, "Target.md"),
+        "---\ntags: []\n---\nTarget content.",
+      );
+      await writeFile(
+        join(testVaultPath, "Unrelated.md"),
+        "---\ntags: []\n---\nNo links.",
+      );
+      await vault.initialize();
+
+      const result = await vault.findRelatedNotes("Source.md");
+
+      expect(result.map((n) => n.title)).toContain("Target");
+      expect(
+        result.find((n) => n.title === "Target")!.score,
+      ).toBeGreaterThanOrEqual(5);
+    });
+
+    test("scores notes that link back to source", async () => {
+      await writeFile(
+        join(testVaultPath, "Source.md"),
+        "---\ntags: []\n---\nContent.",
+      );
+      await writeFile(
+        join(testVaultPath, "Linker.md"),
+        "---\ntags: []\n---\nSee [[Source]].",
+      );
+      await vault.initialize();
+
+      const result = await vault.findRelatedNotes("Source.md");
+
+      const linker = result.find((n) => n.title === "Linker");
+      expect(linker).toBeDefined();
+      expect(linker!.score).toBeGreaterThanOrEqual(5);
+      expect(linker!.relationships).toContain("links to this note");
+    });
+
+    test("scores notes by shared tags", async () => {
+      await writeFile(
+        join(testVaultPath, "Source.md"),
+        "---\ntags: [golang, work]\n---\nContent.",
+      );
+      await writeFile(
+        join(testVaultPath, "SameTags.md"),
+        "---\ntags: [golang, work]\n---\nOther content.",
+      );
+      await vault.initialize();
+
+      const result = await vault.findRelatedNotes("Source.md");
+
+      const match = result.find((n) => n.title === "SameTags");
+      expect(match).toBeDefined();
+      expect(match!.score).toBe(6); // 2 shared tags × 3
+    });
+
+    test("excludes source note from results", async () => {
+      await writeFile(
+        join(testVaultPath, "Source.md"),
+        "---\ntags: [golang]\n---\nContent.",
+      );
+      await vault.initialize();
+
+      const result = await vault.findRelatedNotes("Source.md");
+
+      expect(result.map((n) => n.path)).not.toContain("Source.md");
+    });
+
+    test("respects limit option", async () => {
+      await writeFile(
+        join(testVaultPath, "Source.md"),
+        "---\ntags: [golang]\n---\nContent.",
+      );
+      for (let i = 0; i < 5; i++) {
+        await writeFile(
+          join(testVaultPath, `Related${i}.md`),
+          `---\ntags: [golang]\n---\nContent.`,
+        );
+      }
+      await vault.initialize();
+
+      const result = await vault.findRelatedNotes("Source.md", { limit: 2 });
+
+      expect(result).toHaveLength(2);
+    });
+  });
+
+  describe("getVaultGraph", () => {
+    test("returns all notes as nodes", async () => {
+      await writeFile(
+        join(testVaultPath, "A.md"),
+        "---\ntags: []\n---\nContent.",
+      );
+      await writeFile(
+        join(testVaultPath, "B.md"),
+        "---\ntags: []\n---\nContent.",
+      );
+      await vault.initialize();
+
+      const result = await vault.getVaultGraph();
+
+      expect(result.nodes).toHaveLength(2);
+      expect(result.nodes.map((n) => n.title)).toEqual(
+        expect.arrayContaining(["A", "B"]),
+      );
+    });
+
+    test("counts inbound and outbound links per node", async () => {
+      await writeFile(
+        join(testVaultPath, "A.md"),
+        "---\ntags: []\n---\nSee [[B]].",
+      );
+      await writeFile(
+        join(testVaultPath, "B.md"),
+        "---\ntags: []\n---\nContent.",
+      );
+      await vault.initialize();
+
+      const result = await vault.getVaultGraph();
+
+      const nodeA = result.nodes.find((n) => n.title === "A")!;
+      const nodeB = result.nodes.find((n) => n.title === "B")!;
+      expect(nodeA.outLinks).toBe(1);
+      expect(nodeB.inLinks).toBe(1);
+    });
+
+    test("includes edges when includeEdges is true", async () => {
+      await writeFile(
+        join(testVaultPath, "A.md"),
+        "---\ntags: []\n---\nSee [[B]].",
+      );
+      await writeFile(
+        join(testVaultPath, "B.md"),
+        "---\ntags: []\n---\nContent.",
+      );
+      await vault.initialize();
+
+      const result = await vault.getVaultGraph({ includeEdges: true });
+
+      expect(result.edges).toBeDefined();
+      expect(result.edges).toHaveLength(1);
+      expect(result.edges![0]).toMatchObject({
+        source: "A.md",
+        target: "B",
+        targetExists: true,
+      });
+    });
+
+    test("omits edges when includeEdges is false", async () => {
+      await writeFile(
+        join(testVaultPath, "A.md"),
+        "---\ntags: []\n---\nSee [[B]].",
+      );
+      await writeFile(
+        join(testVaultPath, "B.md"),
+        "---\ntags: []\n---\nContent.",
+      );
+      await vault.initialize();
+
+      const result = await vault.getVaultGraph({ includeEdges: false });
+
+      expect(result.edges).toBeUndefined();
+    });
+
+    test("flags broken links in edges and stats", async () => {
+      await writeFile(
+        join(testVaultPath, "A.md"),
+        "---\ntags: []\n---\nSee [[Ghost]].",
+      );
+      await vault.initialize();
+
+      const result = await vault.getVaultGraph();
+
+      expect(result.stats.brokenLinks).toBe(1);
+      const edge = result.edges!.find((e) => e.target === "Ghost");
+      expect(edge!.targetExists).toBe(false);
+    });
+
+    test("counts orphan notes in stats", async () => {
+      await writeFile(
+        join(testVaultPath, "Linked.md"),
+        "---\ntags: []\n---\nSee [[Linked]].",
+      );
+      await writeFile(
+        join(testVaultPath, "Orphan.md"),
+        "---\ntags: []\n---\nNo links.",
+      );
+      await vault.initialize();
+
+      const result = await vault.getVaultGraph();
+
+      expect(result.stats.orphanNotes).toBe(1);
+    });
+
+    test("filters to orphan nodes when orphansOnly is true", async () => {
+      await writeFile(
+        join(testVaultPath, "Linked.md"),
+        "---\ntags: []\n---\nSee [[Linked]].",
+      );
+      await writeFile(
+        join(testVaultPath, "Orphan.md"),
+        "---\ntags: []\n---\nNo links.",
+      );
+      await vault.initialize();
+
+      const result = await vault.getVaultGraph({ orphansOnly: true });
+
+      expect(result.nodes.map((n) => n.title)).toEqual(["Orphan"]);
+    });
+  });
 });
