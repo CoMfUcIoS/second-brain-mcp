@@ -24,12 +24,12 @@ describe('DatabaseStorage', () => {
 
   describe('Initialization', () => {
     test('creates database directory if not exists', async () => {
-      const dbDir = join(testVaultPath, '.obsidian-mcp');
+      const dbDir = join(testVaultPath, '.second-brain-mcp');
       expect(existsSync(dbDir)).toBe(true);
     });
 
     test('creates database file', async () => {
-      const dbPath = join(testVaultPath, '.obsidian-mcp', 'notes.db');
+      const dbPath = join(testVaultPath, '.second-brain-mcp', 'notes.db');
       expect(existsSync(dbPath)).toBe(true);
     });
 

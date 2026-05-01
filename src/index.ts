@@ -7,7 +7,7 @@ import {
   ListToolsRequestSchema,
   Tool,
 } from "@modelcontextprotocol/sdk/types.js";
-import { ObsidianVault } from "./vault.js";
+import { MarkdownVault } from "./vault.js";
 import { defaultConfig } from "./config.js";
 import {
   SearchOptions,
@@ -178,7 +178,7 @@ const vaultConfig: VaultConfig = {
 // Validate configuration
 validateConfig(vaultConfig);
 
-const vault = new ObsidianVault(vaultConfig);
+const vault = new MarkdownVault(vaultConfig);
 
 // Read version from package.json
 const packageJson = JSON.parse(

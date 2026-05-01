@@ -1,11 +1,11 @@
 /* global setTimeout */
-import { ObsidianVault } from "../vault.js";
+import { MarkdownVault } from "../vault.js";
 import { VaultConfig } from "../types.js";
 import { mkdir, writeFile, rm } from "fs/promises";
 import { join } from "path";
 import { tmpdir } from "os";
 
-describe("ObsidianVault", () => {
+describe("MarkdownVault", () => {
   // Helper to retry a query until expected results are found or timeout.
   // Re-runs vault.initialize() on each retry so a partial scan from a
   // loaded CI runner doesn't permanently poison the in-memory store.
@@ -25,7 +25,7 @@ describe("ObsidianVault", () => {
     return results;
   }
   let testVaultPath: string;
-  let vault: ObsidianVault;
+  let vault: MarkdownVault;
   let config: VaultConfig;
 
   beforeEach(async () => {
@@ -53,7 +53,7 @@ describe("ObsidianVault", () => {
       },
     };
 
-    vault = new ObsidianVault(config);
+    vault = new MarkdownVault(config);
   });
 
   afterEach(async () => {
@@ -144,7 +144,7 @@ describe("ObsidianVault", () => {
     test("skips files exceeding max size", async () => {
       // Create a large file (> 10MB mock)
       const largeConfig = { ...config, maxFileSize: 100 }; // 100 bytes for testing
-      vault = new ObsidianVault(largeConfig);
+      vault = new MarkdownVault(largeConfig);
 
       const largeContent = "x".repeat(200); // 200 bytes
       await writeFile(
@@ -432,7 +432,7 @@ describe("ObsidianVault", () => {
         ...config,
         excludePatterns: [], // Don't exclude Archive at index time
       };
-      vault = new ObsidianVault(configWithArchive);
+      vault = new MarkdownVault(configWithArchive);
 
       await writeFile(
         join(testVaultPath, "Archive", "archived.md"),
@@ -456,7 +456,7 @@ describe("ObsidianVault", () => {
         indexPatterns: ["**/*.md"],
       };
 
-      const invalidVault = new ObsidianVault(invalidConfig);
+      const invalidVault = new MarkdownVault(invalidConfig);
 
       // Should initialize without error but find no notes
       await invalidVault.initialize();
@@ -475,7 +475,7 @@ describe("ObsidianVault", () => {
         indexPatterns: ["**/*.md"],
       };
 
-      const emptyVault = new ObsidianVault(emptyConfig);
+      const emptyVault = new MarkdownVault(emptyConfig);
 
       // Should not throw but should log warning
       await emptyVault.initialize();

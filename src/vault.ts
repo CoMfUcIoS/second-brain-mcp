@@ -26,7 +26,7 @@ import { createStorage } from "./storage-factory.js";
 /**
  * Manages indexing and searching of an Obsidian vault
  */
-export class ObsidianVault {
+export class MarkdownVault {
   private storage: IStorage;
   private config: VaultConfig;
   private indexErrors: Array<{ path: string; error: string }> = [];
