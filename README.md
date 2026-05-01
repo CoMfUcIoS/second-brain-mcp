@@ -21,6 +21,36 @@ A read-only MCP server for intelligent, secure access to your Obsidian vault—e
 - **Vault Graph**: Full link graph with hub detection, broken link stats, and orphan analysis
 - **Security**: Path traversal protection, file size limits, input validation
 
+## Vault Compatibility
+
+This server works with **any directory of Markdown files** — not just Obsidian vaults. It operates purely on the filesystem and has no dependency on the Obsidian app.
+
+| Tool                                      | Compatible | Notes                                                        |
+| ----------------------------------------- | ---------- | ------------------------------------------------------------ |
+| [Obsidian](https://obsidian.md)           | ✅         | Primary use case                                             |
+| [Foam](https://foambubble.github.io/foam) | ✅         | Confirmed — same `.md` + `[[wikilinks]]` format              |
+| [Logseq](https://logseq.com)              | ✅         | Plain `.md` files work; Logseq-specific block syntax ignored |
+| [Dendron](https://www.dendron.so)         | ✅         | Hierarchical filenames index correctly                       |
+| Plain Markdown directories                | ✅         | No frontmatter required — defaults applied                   |
+
+### Using with Foam
+
+Point `--vault-path` at your Foam workspace root. No configuration changes needed:
+
+```bash
+npx -y @comfucios/obsidian-mcp-sb --vault-path "/path/to/your/foam-workspace"
+```
+
+Foam features that work out of the box:
+
+- `[[wikilinks]]` and `[[target|aliased links]]` resolved in graph tools
+- YAML frontmatter tags (both inline `[tag1, tag2]` and block list style)
+- Nested tag hierarchies (`work/backend`)
+- Sub-folder structure (`notes/`, `journal/`, `projects/`)
+- Notes without frontmatter indexed with safe defaults
+
+The `.vscode/` folder is automatically excluded from indexing.
+
 ## Read-Only Design
 
 This MCP server is intentionally **read-only** to ensure your vault remains safe during AI interactions. It provides:
