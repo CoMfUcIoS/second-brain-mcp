@@ -10,6 +10,14 @@ import {
   isValidStatus,
   isValidCategory,
   NoteFrontmatter,
+  KnowledgeGapsResult,
+  ReviewNote,
+  RelatedNote,
+  VaultGraph,
+  OrphanLink,
+  QuestionNote,
+  GraphNode,
+  GraphEdge,
 } from "./types.js";
 import { IStorage } from "./storage.js";
 import { createStorage } from "./storage-factory.js";
@@ -227,5 +235,30 @@ export class ObsidianVault {
    */
   async getRecentNotes(limit: number = 10): Promise<Note[]> {
     return this.storage.getRecentNotes(limit);
+  }
+
+  private extractWikilinks(content: string): string[] {
+    return Array.from(
+      content.matchAll(/\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g),
+      (m) => m[1].trim(),
+    );
+  }
+
+  private extractQuestionLines(content: string): string[] {
+    const withoutCode = content
+      .replace(/```[\s\S]*?```/g, "")
+      .replace(/`[^`]+`/g, "");
+    return withoutCode
+      .split("\n")
+      .map((line) =>
+        line
+          .replace(/^#{1,6}\s+/, "")
+          .replace(/^>\s+/, "")
+          .replace(/^[\s]*[-*+]\s+/, "")
+          .replace(/^[\s]*\d+\.\s+/, "")
+          .replace(/\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g, "$1")
+          .trim(),
+      )
+      .filter((line) => line.endsWith("?") && line.length > 3);
   }
 }
