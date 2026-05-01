@@ -72,9 +72,11 @@ export class ObsidianVault {
   private async indexNotes(): Promise<Note[]> {
     const files: string[] = [];
 
-    // Yield to the event loop so any pending I/O callbacks (e.g. writeFile
-    // completions) have settled before we start the directory scan.
-    await new Promise<void>((resolve) => setImmediate(resolve));
+    // On loaded CI runners (overlay2 fs, Node 22+), directory entries written
+    // by writeFile may not be visible to readdir within the same event-loop
+    // tick. setImmediate (one check-phase tick) is not enough; a real timer
+    // gives the kernel time to propagate the VFS update.
+    await new Promise<void>((resolve) => setTimeout(resolve, 20));
 
     try {
       for (const pattern of this.config.indexPatterns) {
