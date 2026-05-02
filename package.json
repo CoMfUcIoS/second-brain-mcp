@@ -1,6 +1,6 @@
 {
   "name": "@comfucios/second-brain-mcp",
-  "version": "0.1.6",
+  "version": "0.2.0",
   "description": "MCP server for any Markdown vault as a second brain (Obsidian, Foam, Logseq, plain files)",
   "main": "dist/index.js",
   "author": "Ioannis Karasavvaidis <ioannis@studio110.eu>",
